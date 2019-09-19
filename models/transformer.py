@@ -1,5 +1,6 @@
 import tensorflow as tf
 from models.attention import AttentionLayer
+from models.utils import create_initializer, gelu
 
 
 class TransformerEncoderLayer(tf.keras.layers.Layer):
@@ -27,7 +28,7 @@ class TransformerEncoderLayer(tf.keras.layers.Layer):
         self.layer_outputs = []
         self.output_layer_norms = []
 
-        for layer_idx in range(num_heads):
+        for layer_idx in range(num_layers):
             attention_head = AttentionLayer(
                 name="layer_{}/attention/self".format(layer_idx),
                 num_heads=num_heads,
@@ -40,7 +41,7 @@ class TransformerEncoderLayer(tf.keras.layers.Layer):
             attention_output = tf.keras.layers.Dense(
                 hidden_size,
                 name="layer_{}/attention/output/dense".format(layer_idx),
-                kernel_initializer=self.create_initializer(initializer_range)
+                kernel_initializer=create_initializer(initializer_range)
             )
             self.attention_outputs.append(attention_output)
 
@@ -51,19 +52,19 @@ class TransformerEncoderLayer(tf.keras.layers.Layer):
             intermediate_output = tf.keras.layers.Dense(
                 intermediate_size,
                 activation=intermediate_activation,
-                kernel_initializer=self.create_initializer(initializer_range)
+                kernel_initializer=create_initializer(initializer_range)
             )
             self.intermediate_outputs.append(intermediate_output)
 
             layer_output = tf.keras.layers.Dense(
                 hidden_size,
-                kernel_initializer=self.create_initializer(initializer_range),
+                kernel_initializer=create_initializer(initializer_range),
                 name="layer_{}/attention/output/dense".format(layer_idx)
             )
             self.layer_outputs.append(layer_output)
 
             output_layer_norm = tf.keras.layers.LayerNormalization(
-                name="layer_{}/output/LayerNorm"
+                name="layer_{}/output/LayerNorm".format(layer_idx)
             )
             self.output_layer_norms.append(output_layer_norm)
 
@@ -72,7 +73,7 @@ class TransformerEncoderLayer(tf.keras.layers.Layer):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
 
-    def call(self, inputs, attention_mask=None, out_layer_idxs=None, training=None):
+    def call(self, inputs, mask=None, out_layer_idxs=None, training=None):
         # input_shape = self.get_shape_list(inputs, expected_rank=3)
         # batch_size, seq_length, input_width = input_shape[0], input_shape[1], input_shape[2]
         #
@@ -87,7 +88,7 @@ class TransformerEncoderLayer(tf.keras.layers.Layer):
 
             attention_heads = []
             attention_head = self.attention_heads[layer_idx](layer_input,
-                                                             mask=attention_mask,
+                                                             mask=mask,
                                                              training=training)
             attention_heads.append(attention_head)
 

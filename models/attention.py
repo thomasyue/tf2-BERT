@@ -1,4 +1,5 @@
 import tensorflow as tf
+from models.utils import create_initializer, get_shape_list
 
 
 class AttentionLayer(tf.keras.layers.Layer):
@@ -15,22 +16,22 @@ class AttentionLayer(tf.keras.layers.Layer):
         self.num_heads = num_heads
         self.size_per_head = size_per_head
 
-        self.query_layer = tf.keras.layers.Layer(
+        self.query_layer = tf.keras.layers.Dense(
             num_heads * size_per_head,
             activation=query_activation,
-            kernel_initializer=self.create_initializer(initializer_range),
+            kernel_initializer=create_initializer(initializer_range),
             name="query"
         )
-        self.key_layer = tf.keras.layers.Layer(
+        self.key_layer = tf.keras.layers.Dense(
             num_heads * size_per_head,
             activation=key_activation,
-            kernel_initializer=self.create_initializer(initializer_range),
+            kernel_initializer=create_initializer(initializer_range),
             name="key"
         )
-        self.value_layer = tf.keras.layers.Layer(
+        self.value_layer = tf.keras.layers.Dense(
             num_heads * size_per_head,
             activation=value_activation,
-            kernel_initializer=self.create_initializer(initializer_range),
+            kernel_initializer=create_initializer(initializer_range),
             name="value"
         )
 
@@ -62,7 +63,7 @@ class AttentionLayer(tf.keras.layers.Layer):
         # [B, T] -> [B, 1, T]
         mask = tf.cast(tf.expand_dims(to_mask, axis=1), dtype=tf.float32)
         # [B, F] -> [B, F, 1]
-        ones = tf.expand_dims(tf.ones(shape=[from_shape[:2]], dtype=tf.float32), axis=-1)
+        ones = tf.expand_dims(tf.ones(shape=from_shape[:2], dtype=tf.float32), axis=-1)
         # [B, 1, T] * [B, F, 1] -> [B, F, T]
         mask = ones * mask
         return mask
@@ -74,12 +75,13 @@ class AttentionLayer(tf.keras.layers.Layer):
         to_tensor = inputs
 
         if mask is None:
-            sh = self.get_shape_list(from_tensor)
+            sh = get_shape_list(from_tensor)
             mask = tf.ones(sh[:2], dtype=tf.int32)
 
         # [B, F, T]
-        attention_mask = AttentionLayer.create_attention_mask(from_shape=tf.shape(from_tensor),
-                                                              to_mask=mask)
+        attention_mask = AttentionLayer.create_attention_mask_from_input_mask(
+            from_shape=tf.shape(from_tensor), to_mask=mask)
+
         # from_tensor.shape = [B, F, from_width]
         input_shape = tf.shape(from_tensor)
         batch_size, from_seq_len, from_width = input_shape[0], input_shape[1], input_shape[2]
@@ -122,7 +124,7 @@ class AttentionLayer(tf.keras.layers.Layer):
 
         # [B, N, F, T]
         attention_prob = tf.nn.softmax(attention_score)
-        attention_prob = self.dropout(attention_prob, training=training)
+        attention_prob = self.dropout_layer(attention_prob, training=training)
 
         # [B, T, N*H] -> [B, T, N, H]
         value = tf.reshape(value, [batch_size, to_seq_len, self.num_heads, self.size_per_head])

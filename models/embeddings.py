@@ -1,5 +1,5 @@
 import tensorflow as tf
-
+from models.utils import create_initializer
 
 class BertEmbeddingsLayer(tf.keras.layers.Layer):
     def __init__(self,
@@ -55,9 +55,10 @@ class BertEmbeddingsLayer(tf.keras.layers.Layer):
                 name=self.token_type_embedding_name
             )
         if self.use_position_embeddings:
-            self.position_embeddings_layer = PositionalEncoding(name="position_embeddings")
+            self.position_embeddings_layer = PositionalEncoding(name="position_embeddings",
+                                                                embedding_size=self.hidden_size)
 
-        self.layer_norm = tf.keras.layers.LayerNormalization(epsilon=1e-6, name="LayerNorm")
+        self.layer_norm = tf.keras.layers.LayerNormalization(name="LayerNorm")
         self.dropout_layer = tf.keras.layers.Dropout(rate=self.dropout_rate)
         super(BertEmbeddingsLayer, self).build(input_shape)
 
@@ -78,7 +79,7 @@ class BertEmbeddingsLayer(tf.keras.layers.Layer):
             # [None, max_len, hidden_size] -> [None, max_len, hidden_size]
             embedding_output += self.token_type_embeddings_layer(token_type_ids)
 
-        if self.position_embedding_layer is not None:
+        if self.position_embeddings_layer is not None:
             seq_len = input_ids.shape.as_list()[1]
             emb_size = self.hidden_size
             # [seq_len, 128]
@@ -113,29 +114,31 @@ class PositionalEncoding(tf.keras.layers.Layer):
                  position_embedding_name="position_embeddings",
                  initializer_range=0.02,
                  max_position_embeddings=512,
-                 embedding_size=128):
+                 embedding_size=128,
+                 ):
         super(PositionalEncoding, self).__init__(name=name)
         self.position_embedding_name = position_embedding_name
         self.initializer_range = initializer_range
         self.max_position_embeddings = max_position_embeddings
         self.embedding_size = embedding_size
-        self.embedding_table = None
+        self.embedding_matrix = None
 
     def build(self, input_shape):
-        # self.embedding_table = self.add_variable(
-        #     shape=[self.max_position_embeddings, self.embedding_size],
-        #     initializer=self.create_initializer(self.initializer_range),
-        #     name=self.position_embedding_name,
-        #     dtype=tf.float32
-        # )
-
-        width = input_shape[2]
-        self.embedding_table = self.add_variable(
-            shape=[self.max_position_embeddings, width],
-            initializer=self.create_initializer(self.initializer_range),
+        self.embedding_matrix = self.add_variable(
+            shape=[self.max_position_embeddings, self.embedding_size],
+            initializer=create_initializer(self.initializer_range),
             name=self.position_embedding_name,
             dtype=tf.float32
         )
+        super(PositionalEncoding, self).build(input_shape)
+
+        # width = input_shape[2]
+        # self.embedding_matrix = self.add_variable(
+        #     shape=[self.max_position_embeddings, width],
+        #     initializer=create_initializer(self.initializer_range),
+        #     name=self.position_embedding_name,
+        #     dtype=tf.float32
+        # )
 
     def call(self, inputs, training=None):
         seq_len = inputs
@@ -143,7 +146,7 @@ class PositionalEncoding(tf.keras.layers.Layer):
         assert_op = tf.debugging.assert_less_equal(seq_len, self.max_position_embeddings)
 
         with tf.control_dependencies([assert_op]):
-            full_position_embeddings = tf.slice(self.embedding_table,
+            full_position_embeddings = tf.slice(self.embedding_matrix,
                                                 [0, 0],
                                                 [seq_len, -1])
         output = full_position_embeddings
