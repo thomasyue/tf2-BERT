@@ -1,15 +1,23 @@
 # tf2-BERT
-###Tensorflow 2.0 implementation of BERT
+Pure Tensorflow 2.0 implementation of BERT
+
+
 
 BERT with Adapted-BERT fast fine-tuning
+
+
 
 ##Prerequisite
 
 coming soon...
 
+
+
 ## Usage
 
 coming soon...
+
+
 
 ## Resources
 
