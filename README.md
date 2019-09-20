@@ -7,7 +7,7 @@ BERT with Adapted-BERT fast fine-tuning.
 
 
 
-##Prerequisite
+## Requirements
 
 coming soon...
 
