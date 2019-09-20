@@ -3,7 +3,7 @@ Pure Tensorflow 2.0 implementation of BERT
 
 
 
-BERT with Adapted-BERT fast fine-tuning
+BERT with Adapted-BERT fast fine-tuning.
 
 
 
